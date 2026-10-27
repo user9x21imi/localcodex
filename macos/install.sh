@@ -49,7 +49,7 @@ mkdir -p "$PLUGIN/lib";cp "$SOURCE/migration-v2/lib/"*.ts "$PLUGIN/lib/"
 cp "$SOURCE/channel/"*.mjs "$ROOT/channel/"
 cp "$SOURCE/macos/launch.sh" "$ROOT/localcodex";chmod +x "$ROOT/localcodex"
 cp "$SOURCE/macos/Start-LocalCodex.command" "$ROOT/Start-LocalCodex.command";chmod +x "$ROOT/Start-LocalCodex.command"
-CHANNEL=false;YOLO=false
+CHANNEL=${LOCALCODEX_AGENT_CHANNEL:-false};YOLO=${LOCALCODEX_YOLO:-false}
 if [[ "${LOCALCODEX_NONINTERACTIVE:-0}" != 1 ]];then
  read -r -p 'Включить связь с другими ИИ? Внешние агенты используют свои лимиты [y/N]: ' ANSWER
  [[ "$ANSWER" =~ ^[yYдД] ]] && CHANNEL=true

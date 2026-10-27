@@ -1,0 +1,5 @@
+LocalCodex downloads OpenCode 2, its local inference runtime and approximately 14 GB of model files. Internet access and at least 25 GB free disk space are required.
+
+Choose a dedicated writable folder. Existing models are verified and reused. Configuration files are backed up. Closing the installation console cancels installation; downloaded files may remain for retry.
+
+Communication with external agents is optional and uses those agents' accounts and limits. YOLO automatically permits tools and should only be enabled on a trusted machine.

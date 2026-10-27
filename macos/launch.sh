@@ -5,7 +5,7 @@ export PATH="$ROOT/tools/node/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 mkdir -p "$ROOT/logs"
 # macOS dynamically manages disk-backed swap; do not replace dynamic_pager.
 sysctl vm.swapusage >"$ROOT/logs/swap-macos.txt" 2>&1 || true
-MODE=Auto
+MODE=$(node -e 'try{const m=require(process.argv[1]).mode;console.log(["Auto","Fast","MaxPower"].includes(m)?m:"Auto")}catch{console.log("Auto")}' "$ROOT/config-v2/launcher.json")
 if [[ "${1:-}" == --fast ]];then MODE=Fast;shift;elif [[ "${1:-}" == --max ]];then MODE=MaxPower;shift;fi
 RAM=$(sysctl -n hw.memsize);CTX=8192
 if ((RAM>=25769803776));then CTX=16384;fi

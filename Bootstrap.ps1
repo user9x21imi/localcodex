@@ -1,4 +1,4 @@
-param([string]$Root='C:\LLM',[switch]$AgentChannel,[switch]$Voice,[switch]$Yolo,[switch]$EnableDelegation,[switch]$EnableSystemSwap,[ValidateSet('Auto','Fast','MaxPower')][string]$Mode='Auto')
+param([string]$Root='C:\LLM',[switch]$AgentChannel,[switch]$Voice,[switch]$Yolo,[switch]$EnableDelegation,[switch]$EnableSystemSwap,[switch]$NonInteractive,[ValidateSet('Auto','Fast','MaxPower')][string]$Mode='Auto')
 $ErrorActionPreference='Stop'
 $command=Get-Command pwsh.exe -ErrorAction SilentlyContinue
 if($command){$pwsh=$command.Source}else{
@@ -9,6 +9,6 @@ if($command){$pwsh=$command.Source}else{
  Expand-Archive $archive $tools -Force;$pwsh=Join-Path $tools 'pwsh.exe'
 }
 $argsList=@('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $PSScriptRoot 'Install.ps1'),'-Root',$Root,'-Mode',$Mode)
-foreach($name in @('AgentChannel','Voice','Yolo','EnableDelegation','EnableSystemSwap')){if($PSBoundParameters.ContainsKey($name)-and $PSBoundParameters[$name]){$argsList+='-'+$name}}
+foreach($name in @('AgentChannel','Voice','Yolo','EnableDelegation','EnableSystemSwap','NonInteractive')){if($PSBoundParameters.ContainsKey($name)-and $PSBoundParameters[$name]){$argsList+='-'+$name}}
 & $pwsh @argsList
 exit $LASTEXITCODE
