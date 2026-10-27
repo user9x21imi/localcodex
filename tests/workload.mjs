@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {chooseWorkload} from '../migration-v2/lib/workload-policy.ts';
+const user=text=>({info:{role:'user'},parts:[{type:'text',text}]});
+assert.equal(chooseWorkload([user('привет')]).effort,'low');
+assert.equal(chooseWorkload([user('Проанализируй ошибку и исправь установку')]).effort,'high');
+assert.equal(chooseWorkload([user('[MODE:FAST] Проанализируй ошибку и исправь установку')]).effort,'low');
+assert.equal(chooseWorkload([user('[MODE:MAX] привет')]).effort,'high');
+const recovery=chooseWorkload([user('продолжай'),{info:{role:'assistant'},parts:[{type:'tool',state:{status:'error',error:'failed'}},{type:'tool',state:{status:'error',error:'failed'}}]}]);
+assert.equal(recovery.effort,'high');
+console.log('PASS: automatic effort, manual modes and error recovery');

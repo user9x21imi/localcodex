@@ -1,0 +1,1 @@
+Loop recovery verification: TypeScript compile passed; synthetic repeated-plan test passed; user turns and intervening tool progress preserved. Stored history is unchanged. This is context recovery, not guaranteed prevention of all model repetition. Restart LocalCodex and select Local, not Plan, for execution. Existing looping conversations should be continued in a new session.

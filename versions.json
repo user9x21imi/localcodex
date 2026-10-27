@@ -1,0 +1,42 @@
+[
+  {
+    "repo": "anomalyco/opencode",
+    "tag": "v1.19.4",
+    "name": "opencode-windows-x64.zip",
+    "size": 81744896,
+    "browser_download_url": "https://github.com/anomalyco/opencode/releases/download/v1.19.4/opencode-windows-x64.zip",
+    "digest": "sha256:93b899277bd6f68803009e32bf71772ce43c34b18adf1e93b9b4d8780fdf62e5"
+  },
+  {
+    "repo": "ggml-org/llama.cpp",
+    "tag": "b11889",
+    "name": "llama-b11889-bin-win-vulkan-x64.zip",
+    "size": 37049027,
+    "browser_download_url": "https://github.com/ggml-org/llama.cpp/releases/download/b11889/llama-b11889-bin-win-vulkan-x64.zip",
+    "digest": "sha256:3874d6cb33c3540a68191c1ca31b774bd72914e8ca65e51dfe23e3dae8201f00"
+  },
+  {
+    "repo": "astral-sh/uv",
+    "tag": "0.13.5",
+    "name": "uv-x86_64-pc-windows-msvc.zip",
+    "size": 15264056,
+    "browser_download_url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-pc-windows-msvc.zip",
+    "digest": "sha256:a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a"
+  },
+  {
+    "repo": "cjpais/Handy",
+    "tag": "v0.9.8",
+    "name": "Handy_0.9.8_x64-setup.exe",
+    "size": 19615736,
+    "browser_download_url": "https://github.com/cjpais/Handy/releases/download/v0.9.8/Handy_0.9.8_x64-setup.exe",
+    "digest": "sha256:4212edb5658ec2867855fc2ee83ac16ec5bbad09db3c2da8d3d9d5f8bd5eeccc"
+  },
+  {
+    "repo": "PowerShell/PowerShell",
+    "tag": "v7.6.8",
+    "name": "PowerShell-7.6.8-win-x64.zip",
+    "size": 106353859,
+    "browser_download_url": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.8/PowerShell-7.6.8-win-x64.zip",
+    "digest": "sha256:b9f074f923c499b51ec99d313da8e9ae90d17a9f3adf00c73d6189f34d908528"
+  }
+]

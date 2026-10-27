@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {recoverLoop,repeatedAnswer} from '../migration-v2/lib/loop-guard.ts';
+const plan='План действий. Получить транскрипцию видео. Изучить файл PDF. Подготовить запрос. Уточнить сервис и валюту. После получения ответов перейти к реализации. '.repeat(3);
+const msg=(role,body)=>({role,content:[{type:'text',text:body}]});
+const history=[msg('user','Выполни задачу'),msg('assistant',plan),msg('user','Хватит планов'),msg('assistant',plan),msg('user','Начинай')];
+assert.equal(recoverLoop(history),1);assert.equal(history.filter(m=>m.role==='user').length,3);
+assert.equal(history.filter(m=>m.role==='assistant').length,1);
+assert.equal(repeatedAnswer('Готово','Готово'),false);
+const toolHistory=[msg('assistant',plan),{role:'assistant',content:[{type:'tool-call',name:'read'}]},msg('assistant',plan)];
+assert.equal(recoverLoop(toolHistory),0);
+assert.equal(repeatedAnswer(plan,'Установка завершена и запуск проверен. '.repeat(10)),false);
+console.log('PASS: repeated plans removed; user messages, tool progress and distinct answers preserved.');

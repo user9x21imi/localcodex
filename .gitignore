@@ -1,0 +1,17 @@
+node_modules/
+*.gguf
+*.exe
+*.dll
+*.tgz
+*.zip
+*.partial
+.env*
+logs/
+data*/
+state*/
+cache*/
+voice/
+*history*
+*recordings*
+*.db
+*.db-*
