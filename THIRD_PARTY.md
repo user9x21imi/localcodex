@@ -13,3 +13,7 @@ LocalCodex scripts/plugin are MIT licensed. Third-party components are downloade
 - Handy 0.9.8: https://github.com/cjpais/Handy (MIT); Parakeet model license https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3.
 
 Pinned URLs, hashes and model revisions are recorded in versions.json, opencode-v2.json, node.json and models.json. The Windows MCP backend is upstream software; its user-control checks are preserved.
+
+- MLX / MLX LM (MIT): https://github.com/ml-explore/mlx and https://github.com/ml-explore/mlx-lm.
+- Core ML Tools (BSD-3-Clause): https://github.com/apple/coremltools.
+- MLX GPT-OSS conversion (Apache-2.0): https://huggingface.co/mlx-community/gpt-oss-20b-MXFP4-Q8, revision 773a7da77e569019bb0fd17a554b263738d669a3. Per-file SHA256 manifest: macos/mlx-models.json.

@@ -18,7 +18,7 @@ jobs:
       - run: npx tsc --noEmit
         working-directory: migration-v2
       - run: node tests/loop-guard.mjs && node tests/workload.mjs && node tests/terminal-title.mjs && node tests/communication.mjs
-      - run: bash -n macos/install.sh && bash -n macos/launch.sh
+      - run: bash -n macos/install.sh && bash -n macos/launch.sh && bash -n Install-macOS.command && bash -n macos/Start-LocalCodex.command
       - name: PowerShell validation
         shell: pwsh
         run: |
@@ -30,16 +30,41 @@ jobs:
           }
           if($all.Count){throw ($all|Out-String)}
           ./tests/hardware.ps1
-      - name: Build source installer archive
+  macos-runtime:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install and verify native ARM runtime
+        env:
+          LOCALCODEX_RUNTIME_ONLY: '1'
+          LOCALCODEX_NONINTERACTIVE: '1'
+        run: |
+          test "$(uname -m)" = arm64
+          /bin/bash macos/install.sh "$RUNNER_TEMP/LocalCodex smoke"
+          test -x "$RUNNER_TEMP/LocalCodex smoke/Start-LocalCodex.command"
+          test -x "$RUNNER_TEMP/LocalCodex smoke/tools/node/bin/node"
+          "$RUNNER_TEMP/LocalCodex smoke/tools/mlx/bin/python" -c 'import json,mlx.core as mx,coremltools as ct;from mlx_lm.models.gpt_oss import Model;mx.set_default_device(mx.cpu);x=mx.array([1,2,3]);assert int(mx.sum(x))==6;print("PASS: MLX, GPT-OSS architecture and Core ML imported")'
+          cat "$RUNNER_TEMP/LocalCodex smoke/logs/apple-accelerators.json"
+          cat "$RUNNER_TEMP/LocalCodex smoke/logs/coreml-selftest.json"
+          "$RUNNER_TEMP/LocalCodex smoke/tools/node/bin/node" -e 'const fs=require("fs"),path=require("path");const r=process.argv[1];const c=JSON.parse(fs.readFileSync(path.join(r,"config-v2/opencode.json")));if(c.default_agent!=="local"||c.permissions[0].effect!=="ask"||c.plugins)throw Error("config regression");console.log("PASS: macOS ARM runtime, portable Node, launch command and config")' "$RUNNER_TEMP/LocalCodex smoke"
+  release:
+    needs: [validate, macos-runtime]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build source installer archives
         run: |
           git archive --format=zip -o LocalCodex-v0.2.0.zip HEAD
-          sha256sum LocalCodex-v0.2.0.zip > SHA256SUMS.txt
+          git archive --format=zip --prefix=LocalCodex-macOS/ -o LocalCodex-macOS-v0.2.0.zip HEAD Install-macOS.command README-macOS.md LICENSE THIRD_PARTY.md VALIDATION.md models.json macos migration-v2 channel
+          sha256sum LocalCodex-v0.2.0.zip LocalCodex-macOS-v0.2.0.zip > SHA256SUMS.txt
       - name: Publish preview release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view v0.2.0 >/dev/null 2>&1; then
-            gh release upload v0.2.0 LocalCodex-v0.2.0.zip SHA256SUMS.txt --clobber
+            gh release upload v0.2.0 LocalCodex-v0.2.0.zip LocalCodex-macOS-v0.2.0.zip SHA256SUMS.txt --clobber
+            gh release edit v0.2.0 --notes-file RELEASE_NOTES.md
           else
-            gh release create v0.2.0 LocalCodex-v0.2.0.zip SHA256SUMS.txt --target "$GITHUB_SHA" --title "LocalCodex 0.2.0 preview — OpenCode 2" --prerelease --notes-file RELEASE_NOTES.md
+            gh release create v0.2.0 LocalCodex-v0.2.0.zip LocalCodex-macOS-v0.2.0.zip SHA256SUMS.txt --target "$GITHUB_SHA" --title "LocalCodex 0.2.0 preview — OpenCode 2" --prerelease --notes-file RELEASE_NOTES.md
           fi

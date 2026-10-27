@@ -1,3 +1,7 @@
 LocalCodex 0.2.0 preview: OpenCode 2.1.4, gpt-oss-20b, local vision, Windows desktop tools, adaptive reasoning, GPU status and animation, optional bidirectional agent channel, swap diagnostics and an experimental Apple Silicon installer.
 
 Windows components were exercised on RTX 5070 Ti 16 GB / RAM 32 GB. This is a preview: macOS runtime, Claude/Gemini adapters and installation on a completely clean machine are not yet verified. Read README.md and VALIDATION.md before installation. Model weights are downloaded separately with integrity checks.
+
+macOS installer: download LocalCodex-macOS-v0.2.0.zip and open Install-macOS.command. Portable Node and OpenCode 2 install automatically; Apple Silicon only, 16GB minimum, 24GB+ recommended. macOS ARM runtime is validated separately in CI; full model inference and GUI remain device-specific preview tests.
+
+Apple Silicon backend: MLX GPU for GPT-OSS; Core ML CPU_AND_NE adapter for compatible local models, with device discovery and numerical self-test. MLX does not run on Neural Engine; no ANE utilization percentage or GPT-OSS-on-NPU claim is made.

@@ -48,14 +48,11 @@ codex mcp add localcodex -- node C:\LLM\channel\mcp.mjs C:\LLM
 
 ## macOS preview
 
-Только Apple Silicon, минимум 16 ГБ unified memory, рекомендуется 24–32 ГБ. Нужен Node.js; если установлен Homebrew, установщик может поставить Node автоматически.
+Скачайте отдельный **LocalCodex-macOS-v0.2.0.zip**, распакуйте и откройте `Install-macOS.command`. Подробности: [README-macOS.md](README-macOS.md).
 
-```bash
-bash macos/install.sh "$HOME/LLM"
-"$HOME/LLM/localcodex"
-```
+Только Apple Silicon, минимум 16 ГБ unified memory, рекомендуется 24–32 ГБ и 30 ГБ свободного диска. Node.js устанавливается автоматически внутри папки LocalCodex, Homebrew не требуется. После установки откройте `~/LLM/Start-LocalCodex.command`.
 
-Используются Metal, те же модели, режимы и канал агентов. Swap регулирует macOS автоматически. Запуск на физическом Mac пока **не проверен**. Windows MCP и установщик F5-голоса на Mac отсутствуют; macOS GUI через shell/osascript требует системных разрешений и тоже не проверен. Intel Mac пока не поддерживается.
+Проверка ARM runtime входит в CI; полная генерация модели на MacBook и macOS GUI ещё не проверены. Intel Mac и Windows-установщик F5-голоса на Mac пока не поддерживаются.
 
 ## Проверки и лицензии
 

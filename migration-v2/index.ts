@@ -9,6 +9,9 @@ import { chooseWorkload } from './lib/workload-policy.ts';
 import { resources } from './lib/resources.ts';
 import { root } from './lib/paths.ts';
 import { detectAgents, delegateTask } from './lib/agent-channel.ts';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { randomUUID } from 'node:crypto';
 const textContent=(value:any)=>typeof value==='string'?value:JSON.stringify(value);
 export function policyMessages(messages:any[]) {
   return messages.map(m=>({info:{role:m.role},parts:(m.content||[]).map((p:any)=>p.type==='tool-result'?{type:'tool',tool:p.name,state:{status:p.result?.type==='error'?'error':'completed',error:p.result?.type==='error'?textContent(p.result.value):undefined,output:textContent(p.result?.value)}}:p)}));
@@ -33,11 +36,12 @@ export default Plugin.define({
       editor.add({name:'powershell',options:{codemode:false},description:'Execute PowerShell 7 on this PC, verify real exit code. Native/PowerShell errors fail the tool.',input:{type:'object',properties:{script:{type:'string'},cwd:{type:'string'},timeout_ms:{type:'number'}},required:['script'],additionalProperties:false},async execute(input){const result=await runPowerShell(input as any,{directory:ctx.location.directory});return {content:result.output}}});
       editor.add({name:'inspect_image',options:{codemode:false},description:'Read a local screenshot with local vision. No cloud API.',input:{type:'object',properties:{path:{type:'string'},question:{type:'string'}},required:['path'],additionalProperties:false},async execute(input){const a=input as any;return {content:await describeImage(a.path,a.question)}}});
       editor.add({name:'agent_list',options:{codemode:false},description:'Discover installed Codex, Claude, Gemini and GUI agents. Presence does not prove authentication.',input:{type:'object',properties:{},additionalProperties:false},async execute(){return {content:JSON.stringify(await detectAgents())}}});
+      if(process.platform==='darwin')editor.add({name:'coreml_predict',options:{codemode:false},description:'Run a local user-provided Core ML model using CPU_AND_NE policy (CPU + Apple Neural Engine; Core ML schedules operations). Not an NPU backend for GPT-OSS/MLX. Requires an existing .mlpackage/.mlmodel/.mlmodelc and JSON feature inputs.',input:{type:'object',properties:{model:{type:'string'},inputs_json:{type:'string'}},required:['model','inputs_json'],additionalProperties:false},async execute(input){const a=input as any;const output=root+'/state-v2/coreml-'+randomUUID()+'.json';const r=await promisify(execFile)(root+'/tools/mlx/bin/python',[root+'/macos/coreml-run.py','--model',a.model,'--inputs',a.inputs_json,'--output',output],{timeout:120000,maxBuffer:1024*1024});return {content:r.stdout}}});
       editor.add({name:'agent_delegate',options:{codemode:false},description:'Delegate one bounded task to an installed and allowed cloud CLI after local failure. Sends the supplied task to that provider, uses its account limits. No recursive delegation. Returned answer still needs verification.',input:{type:'object',properties:{agent:{type:'string',enum:['auto','codex','claude','gemini']},task:{type:'string'},cwd:{type:'string'}},required:['task'],additionalProperties:false},async execute(input){return {content:await delegateTask(input as any,ctx.location.directory)}}});
     });
 
     await ctx.tool.transform(editor=>{
-      for(const name of ['powershell','inspect_image','agent_list','agent_delegate'])editor.update(name,tool=>{
+      for(const name of ['powershell','inspect_image','agent_list','agent_delegate',...(process.platform==='darwin'?['coreml_predict']:[])])editor.update(name,tool=>{
         const execute=tool.execute;
         tool.execute=async(input,context)=>{
           await ctx.permission.assert({sessionID:context.sessionID,agent:context.agent,source:{type:'tool',messageID:context.messageID,id:context.id},action:name,resources:['*']});
@@ -82,6 +86,7 @@ export default Plugin.define({
       const profile:any=await ctx.storage.get(`workload:${event.sessionID}`);
       if(event.kind==='primary'&&profile){body.reasoning_effort=profile.effort;body.reasoning_budget_tokens=profile.budget;body.max_tokens=Math.min(profile.output,Number(process.env.LOCALCODEX_OUTPUT_LIMIT||12288))}
       else{body.reasoning_effort='low';body.reasoning_budget_tokens=128;body.max_tokens=768}
+      if(process.env.LOCALCODEX_BACKEND==='mlx'){body.model='default_model';body.chat_template_kwargs={...body.chat_template_kwargs,reasoning_effort:body.reasoning_effort};delete body.reasoning_budget_tokens;}
       const headers=new Headers(event.request.headers);headers.delete('content-length');delete body.max_completion_tokens;event.request=new Request(event.request,{headers,body:JSON.stringify(body),signal:AbortSignal.timeout(120000)});
     });
     await ctx.tool.hook('execute.after',async event=>{
