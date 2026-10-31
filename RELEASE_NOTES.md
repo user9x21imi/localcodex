@@ -9,3 +9,11 @@ Apple Silicon backend: MLX GPU for GPT-OSS; Core ML CPU_AND_NE adapter for compa
 ## Graphical installers
 Windows: LocalCodex-Windows-Setup-v0.2.0.exe. macOS Apple Silicon: LocalCodex-macOS-v0.2.0.dmg, containing LocalCodex Installer.app. Choose folder, mode and optional agent communication / YOLO. Models download during setup. These preview installers have no commercial code-signing certificate or Apple notarization; OS warnings may appear. Existing ZIP installers remain available. Native macOS GUI interaction and a full model download are not automated by CI.
 
+
+## Исправление языка и повторов (31 октября)
+- Постоянный config-v2/AGENTS.md: русский язык, проверка источников, запрет выдуманных URL.
+- Раздельная политика основных ответов и сжатия истории, увеличенный лимит сводки и резерв токенов для ответа.
+- Сохранение последней просьбы и кратких веб-результатов после сжатия; устранение повторов служебных сводок.
+- Рабочий адаптер актуального MCP Exa, обработка ошибок поиска, чтение первоисточника между сериями поисков.
+- Сокращение больших ответов веб-инструментов, включая массивы текстовых частей.
+

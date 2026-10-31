@@ -16,6 +16,7 @@ $native=@{
  commands=@{fast=@{agent='local';description='Fast reasoning';template='[MODE:FAST] $ARGUMENTS'};max=@{agent='local';description='Max Power reasoning';template='[MODE:MAX] $ARGUMENTS'}}
 }
 New-Item "$Root\config-v2" -ItemType Directory -Force | Out-Null
+if(!(Test-Path "$Root\config-v2\AGENTS.md")){Copy-Item (Join-Path $PSScriptRoot '../payload/AGENTS.md') "$Root\config-v2\AGENTS.md"}
 $native | ConvertTo-Json -Depth 30 | Set-Content "$Root\config-v2\opencode.json" -Encoding utf8
 @{enabled=[bool]$EnableDelegation;allowed=@('codex','claude','gemini');timeoutMs=300000} | ConvertTo-Json | Set-Content "$Root\config-v2\agents.json" -Encoding utf8
 @{mode=$Mode;yolo=[bool]$Yolo} | ConvertTo-Json | Set-Content "$Root\config-v2\launcher.json" -Encoding utf8

@@ -28,8 +28,9 @@ if(!$reuse){
  for($i=0;$i-lt 120;$i++){if($server.HasExited){throw "Model failed to start. See $root\logs\server-stderr.txt"};try{$health=Invoke-RestMethod http://127.0.0.1:8080/health -TimeoutSec 2;if($health.status-eq'ok'){$ready=$true;break}}catch{};Start-Sleep -Seconds 1}
  if(!$ready){throw 'Model startup timed out.'}
 }
+$profile.outputLimit=if($profile.context -le 8192){[math]::Min(1536,[math]::Floor($profile.context/4))}else{[math]::Min(8192,[math]::Floor($profile.context/4))}
 $env:LOCALCODEX_OUTPUT_LIMIT=[string]$profile.outputLimit
-$env:OPENCODE_CONFIG_CONTENT=(@{providers=@{local=@{models=@{localcodex=@{limit=@{context=$profile.context;output=$profile.outputLimit}}}}};compaction=@{buffer=[math]::Min(4096,[math]::Floor($profile.context/4));keep=@{tokens=[math]::Floor($profile.context/3)}}} | ConvertTo-Json -Depth 12 -Compress)
+$env:OPENCODE_CONFIG_CONTENT=(@{providers=@{local=@{models=@{localcodex=@{limit=@{context=$profile.context;output=$profile.outputLimit}}}}};compaction=@{buffer=[math]::Min(2048,[math]::Floor($profile.context/16));keep=@{tokens=[math]::Floor($profile.context/3)}}} | ConvertTo-Json -Depth 12 -Compress)
 $argsList=@('--standalone')
 if($settings.yolo){$argsList+='--auto'}
 if($Task){$argsList=@('run')+$argsList+@('--model','local/localcodex','--agent','local','--format','json');foreach($attachment in $File){$argsList+=@('--file',$attachment)};$argsList+=@('--',$Task)}

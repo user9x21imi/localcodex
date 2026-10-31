@@ -17,7 +17,7 @@ jobs:
         working-directory: migration-v2
       - run: npx tsc --noEmit
         working-directory: migration-v2
-      - run: node tests/loop-guard.mjs && node tests/workload.mjs && node tests/terminal-title.mjs && node tests/communication.mjs
+      - run: node tests/loop-guard.mjs && node tests/workload.mjs && node tests/terminal-title.mjs && node tests/communication.mjs && node tests/conversation-policy.mjs
       - run: bash -n macos/install.sh && bash -n macos/launch.sh && bash -n Install-macOS.command && bash -n macos/Start-LocalCodex.command
       - name: PowerShell validation
         shell: pwsh
@@ -82,7 +82,7 @@ jobs:
       - name: Build source installer archives
         run: |
           git archive --format=zip -o LocalCodex-Windows-v0.2.0.zip HEAD
-          git archive --format=zip --prefix=LocalCodex-macOS/ -o LocalCodex-macOS-v0.2.0.zip HEAD Install-macOS.command README-macOS.md LICENSE THIRD_PARTY.md VALIDATION.md models.json macos migration-v2 channel
+          git archive --format=zip --prefix=LocalCodex-macOS/ -o LocalCodex-macOS-v0.2.0.zip HEAD Install-macOS.command README-macOS.md LICENSE THIRD_PARTY.md VALIDATION.md models.json macos migration-v2 channel payload/AGENTS.md
           sha256sum LocalCodex-Windows-v0.2.0.zip LocalCodex-macOS-v0.2.0.zip dist/*.exe dist/*.dmg | sed 's|dist/||' > SHA256SUMS.txt
       - name: Publish preview release
         env:

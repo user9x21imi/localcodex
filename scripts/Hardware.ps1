@@ -18,7 +18,7 @@ function Select-LocalProfile($Hardware,[string]$Mode) {
     if($Mode -eq 'Fast'){$context=[math]::Min($context,8192)}
     $layers=if($usable -ge 12800){99}else{[math]::Max(0,[math]::Min(23,[math]::Floor(($usable-512)/550)))}
     if($Hardware.freeRamMB -lt 4096 -and $layers -lt 24){throw 'Not enough free RAM for partial CPU offload. Close applications before loading the model.'}
-    [pscustomobject]@{mode=$Mode;context=$context;gpuLayers=$layers;device=if($gpu){"Vulkan$($gpu.index)"}else{'none'};threads=[math]::Max(2,[math]::Min(16,[math]::Floor($Hardware.threads/2)));reasoningBudget=if($Mode -eq 'Fast'){256}else{4096};outputLimit=[math]::Min(12288,[math]::Floor($context/2));gpu=$gpu;freeRamMB=$Hardware.freeRamMB;warning=if(!$gpu){'NVIDIA VRAM probe unavailable. Conservative CPU mode; AMD/Intel not yet calibrated.'}elseif($layers -lt 24){'Partial CPU offload: slower than full GPU. Layer count is a conservative estimate, not a speed benchmark.'}else{''}}
+    [pscustomobject]@{mode=$Mode;context=$context;gpuLayers=$layers;device=if($gpu){"Vulkan$($gpu.index)"}else{'none'};threads=[math]::Max(2,[math]::Min(16,[math]::Floor($Hardware.threads/2)));reasoningBudget=if($Mode -eq 'Fast'){256}else{4096};outputLimit=if($context -le 8192){[math]::Min(1536,[math]::Floor($context/4))}else{[math]::Min(8192,[math]::Floor($context/4))};gpu=$gpu;freeRamMB=$Hardware.freeRamMB;warning=if(!$gpu){'NVIDIA VRAM probe unavailable. Conservative CPU mode; AMD/Intel not yet calibrated.'}elseif($layers -lt 24){'Partial CPU offload: slower than full GPU. Layer count is a conservative estimate, not a speed benchmark.'}else{''}}
 }
 if($MyInvocation.InvocationName -ne '.'){
     $result=Select-LocalProfile (Get-LocalHardware) $Mode

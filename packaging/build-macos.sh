@@ -2,7 +2,7 @@
 set -euo pipefail
 APP="$PWD/dist/LocalCodex Installer.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/payload"
-git archive HEAD Install-macOS.command README-macOS.md LICENSE THIRD_PARTY.md models.json macos migration-v2 channel | tar -x -C "$APP/Contents/Resources/payload"
+git archive HEAD Install-macOS.command README-macOS.md LICENSE THIRD_PARTY.md models.json macos migration-v2 channel payload/AGENTS.md | tar -x -C "$APP/Contents/Resources/payload"
 swiftc -O -framework Cocoa packaging/Installer.swift -o "$APP/Contents/MacOS/LocalCodexInstaller"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict>
