@@ -3,6 +3,7 @@ import {isServiceSummary,recoverServiceSummaries,requestPolicy,buildCompaction} 
 import {compactToolText} from '../migration-v2/lib/tool-output.ts';
 import {parseMcpReply} from '../migration-v2/lib/web-search.ts';
 import {responseText,responseIssues,repository} from '../migration-v2/lib/response-guard.ts';
+import {redactSecrets} from '../migration-v2/lib/redact.ts';
 const summary='Objective\nFind a repository\nRequirements\n(none)\nWork State\nCompleted\nNext Move\n(none)\nImportant Context\nUnverified search snippets';
 assert.equal(isServiceSummary(summary),true);assert.equal(isServiceSummary('Objective function in code'),false);
 const user={role:'user',content:[{type:'text',text:summary}]};const call={type:'tool-call',name:'websearch',id:'1'};
@@ -29,4 +30,5 @@ assert.ok(responseIssues('Here is the repository and the application you should 
 assert.equal(responseText('data: {"choices":[{"delta":{"content":"Ответ"}}]}\n\ndata: [DONE]\n\n').text,'Ответ');
 assert.equal(responseText('data: {"choices":[{"delta":{"tool_calls":[{"id":"1"}]}}]}\n\n').tool,true);
 assert.equal(responseText('{"choices":[{"message":{"content":"Обрезано"},"finish_reason":"length"}]}').truncated,true);
+assert.doesNotMatch(redactSecrets('api_key=FAKE_PRIVATE_VALUE Authorization: Bearer FAKE_BEARER_VALUE'),/FAKE_PRIVATE_VALUE|FAKE_BEARER_VALUE/);
 console.log('PASS: Russian primary/compaction policy; service summaries marked once; user requests and tool calls preserved.');

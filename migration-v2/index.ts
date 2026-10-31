@@ -3,6 +3,7 @@ import {persistentRules, recoverServiceSummaries, requestPolicy, buildCompaction
 import {compactToolText} from './lib/tool-output.ts';
 import {webSearch} from './lib/web-search.ts';
 import {urls,responseText,responseIssues,guardInstruction,fallbackResponse} from './lib/response-guard.ts';
+import {redactSecrets} from './lib/redact.ts';
 import { setStatus, sampleStatus } from './lib/status.ts';
 import { windowsClient } from './lib/windows-channel.ts';
 import { Plugin } from '@opencode/plugin';
@@ -37,7 +38,7 @@ export default Plugin.define({
     const requestBodies=new Map<string,any>();
     await mkdir(`${root}/logs`,{recursive:true});
     await ctx.session.hook('prompt',async event=>{
-      await ctx.storage.set(`latest-task:${event.sessionID}`,event.prompt.text.slice(0,16000));
+      await ctx.storage.set(`latest-task:${event.sessionID}`,redactSecrets(event.prompt.text.slice(0,16000)));
       await ctx.storage.set(`compacted:${event.sessionID}`,false);
       await ctx.storage.set(`web-failures:${event.sessionID}`,{});
       await ctx.storage.set(`web-progress:${event.sessionID}`,{searches:0,calls:0,fetches:0,sources:[],evidence:[]});
@@ -149,7 +150,7 @@ export default Plugin.define({
       const raw:any=event.status==='completed'?event.result:undefined;
       const output=event.status==='error'?JSON.stringify(event.error):typeof raw?.content==='string'?raw.content:Array.isArray(raw?.content)?raw.content.filter((p:any)=>p.type==='text').map((p:any)=>p.text).join('\n'):'';
       const progress:any=await ctx.storage.get(`tool-progress:${event.sessionID}`)||[];
-      progress.push(event.tool+' · '+(event.status==='completed'?'инструмент завершён':'ошибка')+'\nАргументы: '+compactToolText(JSON.stringify(event.input)||'',500)+'\nРезультат: '+compactToolText(output||'',1000));
+      progress.push(redactSecrets(event.tool+' · '+(event.status==='completed'?'инструмент завершён':'ошибка')+'\nАргументы: '+compactToolText(JSON.stringify(event.input)||'',500)+'\nРезультат: '+compactToolText(output||'',1000)));
       await ctx.storage.set(`tool-progress:${event.sessionID}`,progress.slice(-4));
       if(/^web(search|fetch)$/.test(event.tool)){
         const progress:any=await ctx.storage.get(`web-progress:${event.sessionID}`)||{searches:0,calls:0,evidence:[]};progress.calls=(progress.calls||0)+1;await ctx.storage.set(`web-progress:${event.sessionID}`,progress);
