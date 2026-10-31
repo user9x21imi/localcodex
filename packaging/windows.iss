@@ -23,6 +23,7 @@ Name: voice; Description: "Install voice input"; Flags: unchecked
 [Icons]
 Name: "{userdesktop}\LocalCodex"; Filename: "{app}\localcodex.cmd"; WorkingDir: "{app}"
 Name: "{userprograms}\LocalCodex"; Filename: "{app}\localcodex.cmd"; WorkingDir: "{app}"
+Name: "{userdesktop}\STOP LocalCodex"; Filename: "{app}\llm-stop.cmd"; WorkingDir: "{app}"
 [Code]
 var ModePage: TInputOptionWizardPage;
 procedure InitializeWizard;

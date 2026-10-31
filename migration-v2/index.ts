@@ -4,6 +4,8 @@ import {compactToolText} from './lib/tool-output.ts';
 import {webSearch} from './lib/web-search.ts';
 import {urls,responseText,responseIssues,guardInstruction,fallbackResponse} from './lib/response-guard.ts';
 import {redactSecrets} from './lib/redact.ts';
+import {SafetyGate} from './lib/safety-gate.ts';
+import {domain,differentSites,blockedDomain} from './lib/search-diversity.ts';
 import { setStatus, sampleStatus } from './lib/status.ts';
 import { windowsClient } from './lib/windows-channel.ts';
 import { Plugin } from '@opencode/plugin';
@@ -35,9 +37,14 @@ export async function convertMedia(parts:any[]) {
 export default Plugin.define({
   id:'localcodex.windows',
   async setup(ctx){
+    const safety=new SafetyGate(root,process.env.LOCALCODEX_MODE==='MaxPower'?{calls:40,models:24,ms:300000}:process.env.LOCALCODEX_MODE==='Fast'?{calls:16,models:12,ms:120000}:{calls:24,models:16,ms:180000});
     const requestBodies=new Map<string,any>();
     await mkdir(`${root}/logs`,{recursive:true});
     await ctx.session.hook('prompt',async event=>{
+      await safety.begin(event.sessionID,event.prompt.text);
+      const history:any=await ctx.storage.get(`search-history:${event.sessionID}`)||{proposed:[],excluded:[]};
+      history.excluded=differentSites(event.prompt.text)?[...new Set([...history.excluded,...history.proposed.map(domain).filter(Boolean)])]:[];
+      await ctx.storage.set(`search-history:${event.sessionID}`,history);
       await ctx.storage.set(`latest-task:${event.sessionID}`,redactSecrets(event.prompt.text.slice(0,16000)));
       await ctx.storage.set(`compacted:${event.sessionID}`,false);
       await ctx.storage.set(`web-failures:${event.sessionID}`,{});
@@ -50,10 +57,11 @@ export default Plugin.define({
         tool.output=undefined;
         tool.execute=async(input:any,context)=>{
           await ctx.permission.assert({sessionID:context.sessionID,agent:context.agent,source:{type:'tool',messageID:context.messageID,id:context.id},action:'websearch',resources:['*']});
-          return {content:await webSearch(input.query,context.signal)};
+          const history:any=await ctx.storage.get(`search-history:${context.sessionID}`);
+          return {content:await webSearch(input.query,context.signal,history?.excluded||[])};
         };
       });
-      editor.add({name:'powershell',options:{codemode:false},description:'Execute PowerShell 7 on this PC, verify real exit code. Native/PowerShell errors fail the tool.',input:{type:'object',properties:{script:{type:'string'},cwd:{type:'string'},timeout_ms:{type:'number'}},required:['script'],additionalProperties:false},async execute(input){const result=await runPowerShell(input as any,{directory:ctx.location.directory});return {content:result.output}}});
+      editor.add({name:'powershell',options:{codemode:false},description:'Execute PowerShell 7 on this PC, verify real exit code. Native/PowerShell errors fail the tool.',input:{type:'object',properties:{script:{type:'string'},cwd:{type:'string'},timeout_ms:{type:'number'}},required:['script'],additionalProperties:false},async execute(input,context){const result=await runPowerShell(input as any,{directory:ctx.location.directory,signal:context.signal});return {content:result.output}}});
       editor.add({name:'inspect_image',options:{codemode:false},description:'Read a local screenshot with local vision. No cloud API.',input:{type:'object',properties:{path:{type:'string'},question:{type:'string'}},required:['path'],additionalProperties:false},async execute(input){const a=input as any;return {content:await describeImage(a.path,a.question)}}});
       editor.add({name:'agent_list',options:{codemode:false},description:'Discover installed Codex, Claude, Gemini and GUI agents. Presence does not prove authentication.',input:{type:'object',properties:{},additionalProperties:false},async execute(){return {content:JSON.stringify(await detectAgents())}}});
       if(process.platform==='darwin')editor.add({name:'coreml_predict',options:{codemode:false},description:'Run a local user-provided Core ML model using CPU_AND_NE policy (CPU + Apple Neural Engine; Core ML schedules operations). Not an NPU backend for GPT-OSS/MLX. Requires an existing .mlpackage/.mlmodel/.mlmodelc and JSON feature inputs.',input:{type:'object',properties:{model:{type:'string'},inputs_json:{type:'string'}},required:['model','inputs_json'],additionalProperties:false},async execute(input){const a=input as any;const output=root+'/state-v2/coreml-'+randomUUID()+'.json';const r=await promisify(execFile)(root+'/tools/mlx/bin/python',[root+'/macos/coreml-run.py','--model',a.model,'--inputs',a.inputs_json,'--output',output],{timeout:120000,maxBuffer:1024*1024});return {content:r.stdout}}});
@@ -83,7 +91,20 @@ export default Plugin.define({
         }});
       }
     });
+    await ctx.tool.transform(editor=>{
+      for(const {id} of editor.list())editor.update(id,tool=>{
+        const execute=tool.execute;
+        tool.execute=async(input,context)=>{
+          const signal=await safety.before(context.sessionID,id,input);
+          if(id==='webfetch'){const h:any=await ctx.storage.get(`search-history:${context.sessionID}`);if(blockedDomain((input as any)?.url,h?.excluded||[]))throw Error('Пользователь попросил другие сайты. Этот домен исключён, найди новый источник.')}
+          const timeout=setTimeout(()=>void safety.trip('Инструмент не завершился за 90 секунд: '+id),90000);timeout.unref?.();
+          try{return await execute(input,{...context,signal:AbortSignal.any([context.signal,signal])})}finally{clearTimeout(timeout)};
+        };
+      });
+    });
     await ctx.session.hook('context',async event=>{
+      await safety.check();
+      const searchHistory:any=await ctx.storage.get(`search-history:${event.sessionID}`);if(searchHistory?.excluded?.length)event.system.push({type:'text',text:'Пользователь запросил другие сайты. Исключены ранее предложенные домены: '+searchHistory.excluded.join(', ')+'. Не цитируй и не открывай их, ищи новые источники. Если новых нет, честно скажи об этом.'});
       const messages=event.messages as any[]; const recovered=recoverLoop(messages); const summaries=recoverServiceSummaries(messages); event.system.push({type:'text',text:await persistentRules(root)+'\n'+executionRules+((recovered||summaries)?' История содержит повторение или служебную сводку. Продолжи последнюю просьбу пользователя; не считай её выполненной по старому статусу.':' ')});
       const webFailures:any=await ctx.storage.get(`web-failures:${event.sessionID}`)||{};
       for(const [tool,count] of Object.entries(webFailures)){if(Number(count)>=2){delete event.tools[tool];event.system.push({type:'text',text:`Инструмент ${tool} уже дважды завершился ошибкой в этой задаче и временно отключён до следующего сообщения пользователя. Не повторяй его вызов. Используй другой доступный способ, например webfetch для открытого URL; если способов нет, сообщи конкретный блокер по-русски.`})}}
@@ -116,6 +137,7 @@ export default Plugin.define({
     });
     await ctx.session.hook('http.request',async event=>{
       if(event.model.providerID!=='local'||event.request.method!=='POST')return;
+      const safetySignal=event.kind==='primary'?await safety.before(event.sessionID):undefined;
       const body:any=await event.request.clone().json();
       const profile:any=await ctx.storage.get(`workload:${event.sessionID}`);
       requestPolicy(body,event.kind,await persistentRules(root),Number(process.env.LOCALCODEX_OUTPUT_LIMIT||12288),profile);
@@ -125,28 +147,40 @@ export default Plugin.define({
       }
       await appendFile(`${root}/logs/request-policy-v2.jsonl`,JSON.stringify({time:new Date().toISOString(),session:event.sessionID,kind:event.kind,messages:body.messages?.length,maxTokens:body.max_tokens,effort:body.reasoning_effort,russianPolicy:true})+'\n');
       if(process.env.LOCALCODEX_BACKEND==='mlx'){body.model='default_model';body.chat_template_kwargs={...body.chat_template_kwargs,reasoning_effort:body.reasoning_effort};delete body.reasoning_budget_tokens;}
+      if(process.env.LOCALCODEX_MODEL_ARCH==='qwen35'){
+        body.chat_template_kwargs={...body.chat_template_kwargs,enable_thinking:event.kind==='primary'&&profile?.effort==='high'};
+        const system=body.messages.filter((m:any)=>m.role==='system'||m.role==='developer').map((m:any)=>typeof m.content==='string'?m.content:(m.content||[]).filter((p:any)=>p.type==='text').map((p:any)=>p.text).join('\n')).join('\n\n');
+        body.messages=[{role:'system',content:system},...body.messages.filter((m:any)=>m.role!=='system'&&m.role!=='developer')];
+      }
       if(event.kind==='primary')requestBodies.set(event.sessionID,body);
-      const headers=new Headers(event.request.headers);headers.delete('content-length');delete body.max_completion_tokens;event.request=new Request(event.request,{headers,body:JSON.stringify(body),signal:AbortSignal.any([event.request.signal,AbortSignal.timeout(120000)])});
+      const headers=new Headers(event.request.headers);headers.delete('content-length');delete body.max_completion_tokens;event.request=new Request(event.request,{headers,body:JSON.stringify(body),signal:AbortSignal.any([event.request.signal,...(safetySignal?[safetySignal]:[]),AbortSignal.timeout(120000)])});
     });
     await ctx.session.hook('http.response',async event=>{
       if(event.kind!=='primary'||event.model.providerID!=='local'||!event.response.ok)return;
       const original=requestBodies.get(event.sessionID);if(!original)return;requestBodies.delete(event.sessionID);
       const progress:any=await ctx.storage.get(`web-progress:${event.sessionID}`)||{};
       const known:string[]=(progress.fetches?progress.verifiedSources:progress.sources)||[];const sse=(event.response.headers.get('content-type')||'').includes('event-stream');
+      const searchHistory:any=await ctx.storage.get(`search-history:${event.sessionID}`)||{proposed:[],excluded:[]};
+      const checkAnswer=(text:string)=>{const issues=responseIssues(text,known,progress.fetches||0,(progress.calls||0)>0);if(urls(text).some(u=>blockedDomain(u,searchHistory.excluded)))issues.push('Ответ снова предлагает ранее исключённые пользователем сайты. Найди другие домены.');return issues};
       let response=event.response;let raw=await response.text();let parsed=responseText(raw);
       for(let attempt=0;attempt<2&&parsed.parsed&&!parsed.tool;attempt++){
-        const issues=responseIssues(parsed.text,known,progress.fetches||0,(progress.calls||0)>0);if(parsed.truncated)issues.push('Предыдущий ответ обрезан лимитом контекста. Дай завершённый ответ в 2–6 коротких предложениях, без таблиц и листингов.');if(!issues.length)break;
+        const issues=checkAnswer(parsed.text);if(parsed.truncated)issues.push('Предыдущий ответ обрезан лимитом контекста. Дай завершённый ответ в 2–6 коротких предложениях, без таблиц и листингов.');if(!issues.length)break;
         await appendFile(`${root}/logs/response-guard-v2.jsonl`,JSON.stringify({time:new Date().toISOString(),session:event.sessionID,attempt:attempt+1,language:issues.some(i=>i.includes('по-русски')),sources:issues.some(i=>i.includes('репозитории')),needsFetch:issues.some(i=>i.includes('webfetch'))})+'\n');
         const body={...original,reasoning_effort:'low',reasoning_budget_tokens:128,messages:[...original.messages,{role:'user',content:guardInstruction(issues,known)}]};
         if(process.env.LOCALCODEX_BACKEND==='mlx'){body.chat_template_kwargs={...body.chat_template_kwargs,reasoning_effort:'low'};delete body.reasoning_budget_tokens;}
-        if((progress.fetches||0)===0&&body.tools?.some((t:any)=>t.function?.name==='webfetch'))body.tool_choice={type:'function',function:{name:'webfetch'}};
+        if(process.env.LOCALCODEX_MODEL_ARCH==='qwen35')body.chat_template_kwargs={...body.chat_template_kwargs,enable_thinking:false};
+        if(searchHistory.excluded.length&&!known.length&&body.tools?.some((t:any)=>t.function?.name==='websearch'))body.tool_choice={type:'function',function:{name:'websearch'}};
+        else if((progress.fetches||0)===0&&body.tools?.some((t:any)=>t.function?.name==='webfetch'))body.tool_choice={type:'function',function:{name:'webfetch'}};
         const headers=new Headers(event.request.headers);headers.delete('content-length');
+        await safety.before(event.sessionID);
         try{response=await fetch(event.request.url,{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.any([event.request.signal,AbortSignal.timeout(120000)])});if(!response.ok)break;raw=await response.text();parsed=responseText(raw)}catch{break}
       }
-      if(parsed.parsed&&!parsed.tool&&(parsed.truncated||responseIssues(parsed.text,known,progress.fetches||0,(progress.calls||0)>0).length))raw=fallbackResponse(original.model,known,sse);
+      if(parsed.parsed&&!parsed.tool&&(parsed.truncated||checkAnswer(parsed.text).length))raw=fallbackResponse(original.model,known.filter(u=>!blockedDomain(u,searchHistory.excluded)),sse);
+      else if(parsed.parsed&&!parsed.tool){searchHistory.proposed=urls(parsed.text);await ctx.storage.set(`search-history:${event.sessionID}`,searchHistory)}
       const headers=new Headers(event.response.headers);headers.delete('content-length');headers.delete('content-encoding');event.response=new Response(raw,{status:event.response.status,headers});
     });
     await ctx.tool.hook('execute.after',async event=>{
+      await safety.after(event.sessionID,event.status==='error');
       const raw:any=event.status==='completed'?event.result:undefined;
       const output=event.status==='error'?JSON.stringify(event.error):typeof raw?.content==='string'?raw.content:Array.isArray(raw?.content)?raw.content.filter((p:any)=>p.type==='text').map((p:any)=>p.text).join('\n'):'';
       const progress:any=await ctx.storage.get(`tool-progress:${event.sessionID}`)||[];
@@ -183,10 +217,10 @@ export default Plugin.define({
       }
     });
     await ctx.session.hook('retry',event=>{if(event.attempt>=3)event.decision={retry:false}});
-    const events=new AbortController();void(async()=>{try{for await(const event of ctx.event.subscribe({signal:events.signal})){if(/session.execution.(succeeded|failed|interrupted)/.test(event.type))await setStatus({phase:'idle',result:event.type.endsWith('interrupted')?'cancelled':event.type.split('.').at(-1)})}}catch{}})();
+    const events=new AbortController();void(async()=>{try{for await(const event of ctx.event.subscribe({signal:events.signal})){if(/session.execution.(succeeded|failed|interrupted)/.test(event.type)){const data:any=event.data;safety.finish(data?.sessionID||'');await setStatus({phase:'idle',result:event.type.endsWith('interrupted')?'cancelled':event.type.split('.').at(-1)})}}}catch{}})();
     await ctx.session.hook('title',event=>{event.result='LocalCodex'});
     await appendFile(`${root}/logs/plugin-v2.jsonl`,JSON.stringify({time:new Date().toISOString(),version:ctx.app.version,loaded:true})+'\n');
-    return ()=>{clearInterval(statusTimer);events.abort();windows.dispose();void setStatus({phase:'idle'})};
+    return ()=>{safety.dispose();clearInterval(statusTimer);events.abort();windows.dispose();void setStatus({phase:'idle'})};
   }
 });
 

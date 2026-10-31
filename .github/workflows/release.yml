@@ -17,7 +17,7 @@ jobs:
         working-directory: migration-v2
       - run: npx tsc --noEmit
         working-directory: migration-v2
-      - run: node tests/loop-guard.mjs && node tests/workload.mjs && node tests/terminal-title.mjs && node tests/communication.mjs && node tests/conversation-policy.mjs
+      - run: node tests/loop-guard.mjs && node tests/workload.mjs && node tests/terminal-title.mjs && node tests/communication.mjs && node tests/conversation-policy.mjs && node tests/safety.mjs && node tests/search-diversity.mjs
       - run: bash -n macos/install.sh && bash -n macos/launch.sh && bash -n Install-macOS.command && bash -n macos/Start-LocalCodex.command
       - name: PowerShell validation
         shell: pwsh

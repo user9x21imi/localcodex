@@ -1,0 +1,4 @@
+export function domain(url:string){try{const host=new URL(url).hostname.toLowerCase().replace(/^www\./,'');const p=host.split('.');return p.length>2&&p.at(-1)!.length===2&&/^(co|com|net|org)$/.test(p.at(-2)!)?p.slice(-3).join('.'):p.slice(-2).join('.')}catch{return ''}}
+export const differentSites=(text:string)=>/друг(?:ие|им|их|ой|ая).*(?:сайт|источник|информац)|(?:сайт|источник).*друг|заново|с\s+нуля|другие\s+вариант|other\s+(?:sites|sources)|different\s+(?:sites|sources)/iu.test(text);
+export const blockedDomain=(url:string,excluded:string[])=>excluded.includes(domain(url));
+export function filterSearchResults(text:string,excluded:string[]){if(!excluded.length)return text;return text.split(/(?=^Title:)/m).filter(block=>{const url=block.match(/^URL:\s*(\S+)/m)?.[1];return !url||!blockedDomain(url,excluded)}).join('').trim()}

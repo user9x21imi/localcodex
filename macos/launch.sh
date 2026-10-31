@@ -2,6 +2,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 export PATH="$ROOT/tools/node/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+if [[ "${1:-}" == --resume ]];then node -e 'require("fs").writeFileSync(process.argv[1],JSON.stringify({stopped:false,reason:"Explicit new session"}))' "$ROOT/config-v2/emergency-stop.json";shift;fi
+node -e 'const fs=require("fs");const p=process.argv[1];if(fs.existsSync(p)&&JSON.parse(fs.readFileSync(p)).stopped){console.error("Агент остановлен. Новый сеанс: localcodex --resume");process.exit(1)}' "$ROOT/config-v2/emergency-stop.json"
 mkdir -p "$ROOT/logs"
 # macOS dynamically manages disk-backed swap; do not replace dynamic_pager.
 sysctl vm.swapusage >"$ROOT/logs/swap-macos.txt" 2>&1 || true

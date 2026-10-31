@@ -44,6 +44,7 @@ foreach($name in @('index.ts','tui.tsx','powershell.ts','package.json','package-
 New-Item "$plugin/lib" -ItemType Directory -Force|Out-Null; Copy-Item "$PSScriptRoot/migration-v2/lib/*" "$plugin/lib" -Recurse -Force
 Copy-Item "$PSScriptRoot/scripts/Hardware.ps1" "$Root/hardware.ps1" -Force
 Copy-Item "$PSScriptRoot/payload/agent-v2.ps1" "$Root/agent-v2.ps1" -Force
+foreach($name in @('Stop-Agent.ps1','Watch-Agent.ps1','llm-stop.cmd')){Copy-Item "$PSScriptRoot/payload/$name" "$Root/$name" -Force}
 foreach($name in @('opencode.json','launcher.json','agents.json')){if(Test-Path "$Root/config-v2/$name"){Copy-Item "$Root/config-v2/$name" "$Root/config-v2/$name.backup-$(Get-Date -Format yyyyMMdd-HHmmss)"}}
 & "$PSScriptRoot/scripts/Configure.ps1" -Root $Root -Mode $Mode -Yolo:$Yolo -EnableDelegation:$EnableDelegation
 @('@echo off','pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0agent-v2.ps1" %*')|Set-Content "$Root/localcodex-v2.cmd" -Encoding ascii
