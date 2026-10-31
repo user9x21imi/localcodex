@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import {isServiceSummary,recoverServiceSummaries,requestPolicy} from '../migration-v2/lib/conversation-policy.ts';
+import {isServiceSummary,recoverServiceSummaries,requestPolicy,buildCompaction} from '../migration-v2/lib/conversation-policy.ts';
 import {compactToolText} from '../migration-v2/lib/tool-output.ts';
 import {parseMcpReply} from '../migration-v2/lib/web-search.ts';
+import {responseText,responseIssues,repository} from '../migration-v2/lib/response-guard.ts';
 const summary='Objective\nFind a repository\nRequirements\n(none)\nWork State\nCompleted\nNext Move\n(none)\nImportant Context\nUnverified search snippets';
 assert.equal(isServiceSummary(summary),true);assert.equal(isServiceSummary('Objective function in code'),false);
 const user={role:'user',content:[{type:'text',text:summary}]};const call={type:'tool-call',name:'websearch',id:'1'};
@@ -19,4 +20,13 @@ const page='HEAD '+ 'navigation '.repeat(10000)+' FOOTER';const brief=compactToo
 assert.equal(parseMcpReply('event: message\ndata: {"result":{"content":[]},"id":1}\n\n').id,1);
 assert.equal(parseMcpReply('{"result":{"content":[]},"id":2}').id,2);
 assert.throws(()=>parseMcpReply('broken HTML'));
+const checkpoint=buildCompaction('Создай файл и проверь результат',[{role:'assistant',content:[{type:'text',text:summary}]}],['write: C:/test/file.md; read: contents verified'],['webfetch https://example.org/source']);
+assert.match(checkpoint,/Язык общения: русский/);assert.match(checkpoint,/C:\/test\/file.md/);assert.match(checkpoint,/example.org\/source/);assert.doesNotMatch(checkpoint,/Work State|Next Move|Objective/);
+assert.equal(repository('https://raw.githubusercontent.com/storytold/lightcraft/main/README.md'),'storytold/lightcraft');
+assert.ok(responseIssues('Найден репозиторий https://github.com/your-repo/fake',['https://github.com/storytold/lightcraft'],1).length);
+assert.deepEqual(responseIssues('Найден LightCraft: https://github.com/storytold/lightcraft',['https://raw.githubusercontent.com/storytold/lightcraft/main/README.md'],1),[]);
+assert.ok(responseIssues('Here is the repository and the application you should download. This project is written in Rust and supports editing RAW photographs.',[],1).length);
+assert.equal(responseText('data: {"choices":[{"delta":{"content":"Ответ"}}]}\n\ndata: [DONE]\n\n').text,'Ответ');
+assert.equal(responseText('data: {"choices":[{"delta":{"tool_calls":[{"id":"1"}]}}]}\n\n').tool,true);
+assert.equal(responseText('{"choices":[{"message":{"content":"Обрезано"},"finish_reason":"length"}]}').truncated,true);
 console.log('PASS: Russian primary/compaction policy; service summaries marked once; user requests and tool calls preserved.');
